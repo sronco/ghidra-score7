@@ -1,0 +1,66 @@
+# sleigh include file for S+core7
+
+define alignment=2;
+
+define space RAM      type=ram_space      size=4  default;
+define space register type=register_space size=4;
+
+define register offset=0x000 size=4 [ r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 ];
+define register offset=0x080 size=4 [ cr0 cr1 cr2 cr3 cr4 cr5 cr6 cr7 cr8 cr9 cr10 cr11 cr12 cr13 cr14 cr15 cr16 cr17 cr18 cr19 cr20 cr21 cr22 cr23 cr24 cr25 cr26 cr27 cr28 cr29 cr30 cr31 ];
+define register offset=0x100 size=4 [ PC sr0 sr1 sr2 CEL CEH ];
+define register offset=0x180 size=1 [ V C Z N T ];
+
+
+#------------------------------------------------------------------------------
+# PCODEOP
+#------------------------------------------------------------------------------
+
+define pcodeop score7_syscall;
+define pcodeop score7_trap;
+define pcodeop score7_pflush;
+define pcodeop score7_sleep;
+define pcodeop score7_cache;
+define pcodeop score7_sdbbp;
+define pcodeop score7_ceinst;
+
+
+#------------------------------------------------------------------------------
+# MACROS
+#------------------------------------------------------------------------------
+
+macro setC(value, bit)
+{
+	C = ((value >> bit) & 1) != 0;
+}
+
+macro checkNZ(result)
+{
+	Z = result == 0;
+	N = result s< 0;
+}
+
+macro checkAddCV(op1, op2)
+{
+	C = carry(op1, op2);
+	V = scarry(op1, op2);
+}
+
+macro checkSubCV(op1, op2)
+{
+	C = op1 >= op2;
+	V = sborrow(op1, op2);
+}
+
+macro checkAddCarryCV(op1, op2)
+{
+	local tmp:4 = zext(C);
+	C = carry(op1, op2) || carry(op1 + op2, tmp);
+	V = scarry(op1, op2) || scarry(op1 + op2, tmp);
+}
+
+macro checkSubCarryCV(op1, op2)
+{
+	local tmp:4 = zext(C ^ 1);
+	C = op1 >= op2 && op1 - op2 >= tmp;
+	V = sborrow(op1, op2) || sborrow(op1 - op2, tmp);
+}

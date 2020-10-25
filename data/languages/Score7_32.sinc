@@ -1,0 +1,1041 @@
+# sleigh include file for S+core 32-bit Opcodes
+
+#------------------------------------------------------------------------------
+# TOKENS
+#------------------------------------------------------------------------------
+
+define token op32(32)
+	P32H      = (31,31)
+	P32L      = (15,15)
+	OP32      = (26,30)
+	C32       = (10,14)
+
+	# SpecialForm
+	S_RD      = (21,25)
+	S_TCS     = (21,22)
+	S_RA      = (16,20)
+	S_RAI     = (16,20)
+	S_RB      = (10,14)
+	S_RBSR    = (10,14)
+	S_RB3     = (10,11)
+	S_RBC     = (10,14)
+	S_SA5     = (10,14)
+	S_SA50    = (10,14)
+	S_FUNC6   = (1,6)
+	S_CU      = (0,0)
+	S_LK      = (0,0)
+
+	# IForm
+	I_RD      = (21,25)
+	I_FUNC3   = (18,20)
+	I_IMM16H  = (16,17)
+	I_IMM16L  = (1,14)
+	I_CU      = (0,0)
+
+	# RIForm
+	RI_RD     = (21,25)
+	RI_RA     = (16,20)
+	RI_IMM14  = (1,14)
+	RI_SIMM14 = (1,14) signed
+	RI_CU     = (0,0)
+
+	# JForm
+	J_DISP24H = (16,25)
+	J_DISP24L = (1,14)
+
+	# BCForm
+	BC_DISP19S= (24,24)
+	BC_DISP19H= (16,24)
+	#BC_BC     = (10,14)
+	BC_DISP19L= (1,9)
+	BC_LK     = (0,0)
+
+	# RIXForm
+	RIX_RD    = (21,25)
+	RIX_RA    = (16,20)
+	RIX_IMM12 = (3,14) signed
+	RIX_FUNC3 = (0,2)
+
+	# CRForm
+	CR_RD     = (21,25)
+	CR_CR     = (16,20)
+	CR_CRI    = (16,20)
+	#CR_IMM10  = (5,14)
+	CR_OP     = (0,7)
+
+	# LSForm
+	LS_RD     = (21,25)
+	LS_RA     = (16,20)
+	LS_IMM15  = (0,14) signed
+
+	# Extensions
+	CACHE_OP  = (21,25)
+	SYSCALLH  = (16,25)
+	SYSCALLL  = (10,14)
+	R_FUNC5   = (0,4)
+	R_USD2    = (5,9)
+	R_USD1    = (21,25)
+;
+
+
+attach variables [I_RD LS_RD LS_RA RI_RD RI_RA CR_RD RIX_RA RIX_RD S_RA S_RD S_RB]   [ r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 ];
+attach variables [CR_CR]                                                             [ cr0 cr1 cr2 cr3 cr4 cr5 cr6 cr7 cr8 cr9 cr10 cr11 cr12 cr13 cr14 cr15 cr16 cr17 cr18 cr19 cr20 cr21 cr22 cr23 cr24 cr25 cr26 cr27 cr28 cr29 cr30 cr31 ];
+attach variables [S_RBSR]                                                            [ sr0 sr1 sr2 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ];
+
+CC32: "cs"   is C32=0    { if (C == 0) goto inst_next; }
+CC32: "cc"   is C32=1    { if (C != 0) goto inst_next; }
+CC32: "gtu"  is C32=2    { if (C == 0 || Z != 0) goto inst_next; }
+CC32: "leu"  is C32=3    { if (C != 0 && Z == 0) goto inst_next; }
+CC32: "eq"   is C32=4    { if (Z == 0) goto inst_next; }
+CC32: "ne"   is C32=5    { if (Z != 0) goto inst_next; }
+CC32: "gt"   is C32=6    { if (Z != 0 || N != V) goto inst_next; }
+CC32: "le"   is C32=7    { if (Z == 0 && N == V) goto inst_next; }
+CC32: "ge"   is C32=8    { if (N != V) goto inst_next; }
+CC32: "lt"   is C32=9    { if (N == V) goto inst_next; }
+CC32: "mi"   is C32=10   { if (N == 0) goto inst_next; }
+CC32: "pl"   is C32=11   { if (N != 0) goto inst_next; }
+CC32: "vs"   is C32=12   { if (V == 0) goto inst_next; }
+CC32: "vc"   is C32=13   { if (V != 0) goto inst_next; }
+CC32: "cnz"  is C32=14   { if (sr0 == 0) goto inst_next; sr0 = sr0 - 1; }
+CC32: ""     is C32=15   {  }
+
+BDEST32: reloc is BC_DISP19S=0 & BC_DISP19L & BC_DISP19H [ reloc = inst_start + (((BC_DISP19H << 9) | BC_DISP19L) << 1); ] { export *[RAM]:4 reloc; }
+BDEST32: reloc is BC_DISP19S=1 & BC_DISP19L & BC_DISP19H [ reloc = inst_start - (((((BC_DISP19H << 9) | BC_DISP19L) ^ 0x3ffff) + 1) * 2); ] { export *[RAM]:4 reloc; }
+JDEST32: reloc is J_DISP24L & J_DISP24H [ reloc = (inst_start & 0xfc000000) | (((J_DISP24H << 14) | J_DISP24L) << 1); ] { export *[RAM]:4 reloc; }
+
+IMM16  : imm16 is I_IMM16L & I_IMM16H [ imm16 = (I_IMM16H << 14) | I_IMM16L; ] { tmp:2 = imm16; export tmp; }
+SIMM16 : simm16 is I_IMM16H<2  & I_IMM16L & I_IMM16H [ simm16 = (I_IMM16H << 14) | I_IMM16L; ] { tmp:2 = simm16; export tmp; }
+SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H << 14) | I_IMM16L) ^ 0xffff) + 1); ] { tmp:2 = simm16; export tmp; }
+
+
+#------------------------------------------------------------------------------
+# OPCODES
+#------------------------------------------------------------------------------
+
+:nop is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x00
+{
+}
+
+:syscall SYSCALLIM15 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x01 & SYSCALLH & SYSCALLL [ SYSCALLIM15 = (SYSCALLH << 5) | SYSCALLL; ]
+{
+	score7_syscall(SYSCALLIM15:2);
+}
+
+:trap^CC32 S_RAI is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x02 & CC32 & S_RAI
+{
+	build CC32;
+	score7_trap(S_RAI:1);
+}
+
+:sdbbp S_RAI is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x03 & S_RAI
+{
+	score7_sdbbp(S_RAI:1);
+}
+
+:br S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x04 & S_LK=0 & S_RBC=15 & S_RAI=3 & S_RA
+{
+	return [S_RA];
+}
+
+:br S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x04 & S_LK=0 & S_RBC=15 & S_RAI!=3 & S_RA
+{
+	goto [S_RA];
+}
+
+
+:br^CC32 S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x04 & S_LK=0 & S_RBC!=15 & CC32 & S_RA
+{
+	build CC32;
+	goto [S_RA];
+}
+
+:br^CC32"l" S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x04 & S_LK=1 & CC32 & S_RA
+{
+	build CC32;
+	r3 = inst_next;
+	call [S_RA];
+}
+
+:pflush is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x05
+{
+	score7_pflush();
+}
+
+:add S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x08 & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA + S_RB;
+}
+
+:add.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x08 & S_CU=1 & S_RD & S_RA & S_RB
+{
+	checkAddCV(S_RA, S_RB);
+	S_RD = S_RA + S_RB;
+	checkNZ(S_RD);
+}
+
+# Docs says S_FUNC6=8, but binutils use 9
+:addc S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x09 & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA + S_RB + zext(C);
+}
+
+# Docs says S_FUNC6=8, but binutils use 9
+:addc.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x09 & S_CU=1 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA + S_RB + zext(C);
+	checkAddCarryCV(S_RA, S_RB);
+	checkNZ(S_RD);
+}
+
+:sub S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0a & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA - S_RB;
+}
+
+:sub.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0a & S_CU=1 & S_RD & S_RA & S_RB
+{
+	checkSubCV(S_RA, S_RB);
+	S_RD = S_RA - S_RB;
+	checkNZ(S_RD);
+}
+
+:subc S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0b & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA - S_RB - zext(C ^ 1);
+}
+
+:subc.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0b & S_CU=1 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA - S_RB - zext(C ^ 1);
+	checkSubCarryCV(S_RA, S_RB);
+	checkNZ(S_RD);
+}
+
+:cmpteq.c S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0c & S_CU=1 & S_TCS=0 & S_RA & S_RB
+{
+	checkSubCV(S_RA, S_RB);
+	checkNZ(S_RA - S_RB);
+	T = Z;
+}
+
+:cmptmi.c S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0c & S_CU=1 & S_TCS=1 & S_RA & S_RB
+{
+	checkSubCV(S_RA, S_RB);
+	checkNZ(S_RA - S_RB);
+	T = N;
+}
+
+:cmp.c S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0c & S_CU=1 & S_TCS>1 & S_RA & S_RB
+{
+	checkSubCV(S_RA, S_RB);
+	checkNZ(S_RA - S_RB);
+}
+
+:cmpzteq.c S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0d & S_CU=1 & S_TCS=0 & S_RA
+{
+	checkNZ(S_RA - 0);
+	C = 1;
+	V = 0;
+	T = Z;
+}
+
+:cmpztmi.c S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0d & S_CU=1 & S_TCS=1 & S_RA
+{
+	checkNZ(S_RA - 0);
+	C = 1;
+	V = 0;
+	T = N;
+}
+
+:cmpz.c S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0d & S_CU=1 & S_TCS>1 & S_RA
+{
+	checkNZ(S_RA - 0);
+	C = 1;
+	V = 0;
+}
+
+:neg S_RD, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0f & S_CU=0 & S_RD & S_RB
+{
+	S_RD = 0 - S_RB;
+}
+
+:neg.c S_RD, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x0f & S_CU=1 & S_RD & S_RB
+{
+	C = 0 == S_RB;
+	V = sborrow(0, S_RB);
+	S_RD = 0 - S_RB;
+	checkNZ(S_RD);
+}
+
+:and S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x10 & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA & S_RB;
+}
+
+:and.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x10 & S_CU=1 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA & S_RB;
+	checkNZ(S_RD);
+}
+
+:or S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x11 & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA | S_RB;
+}
+
+:or.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x11 & S_CU=1 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA | S_RB;
+	checkNZ(S_RD);
+}
+
+:not S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x12 & S_CU=0 & S_RD & S_RA
+{
+	S_RD = ~S_RA;
+}
+
+:not.c S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x12 & S_CU=1 & S_RD & S_RA
+{
+	S_RD = ~S_RA;
+	checkNZ(S_RD);
+}
+
+:xor S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x13 & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA ^ S_RB;
+}
+
+:xor.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x13 & S_CU=1 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA ^ S_RB;
+	checkNZ(S_RD);
+}
+
+# Missing from docs
+:bitclr S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x14 & S_CU=0 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA & ~(1 << S_SA5);
+}
+
+# Missing from docs
+:bitclr.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x14 & S_CU=1 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA & ~(1 << S_SA5);
+	checkNZ(S_RD);
+}
+
+# Missing from docs
+:bitset S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x15 & S_CU=0 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA | (1 << S_SA5);
+}
+
+# Missing from docs
+:bitset.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x15 & S_CU=1 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA | (1 << S_SA5);
+	checkNZ(S_RD);
+}
+
+:bittst.c S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x16 & S_CU=1 & S_RD & S_RA & S_SA5
+{
+	Z = (S_RA & (1 << S_SA5)) == 0;
+	N = S_RA s< 0;
+}
+
+# Missing from docs
+:bittgl S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x17 & S_CU=0 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA ^ (1 << S_SA5);
+}
+
+# Missing from docs
+:bittgl.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x17 & S_CU=1 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA ^ (1 << S_SA5);
+	checkNZ(S_RD);
+}
+
+:sll S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x18 & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA << (S_RB & 0x1f);
+}
+
+:sll.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x18 & S_CU=1 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA << (S_RB & 0x1f);
+	checkNZ(S_RD);
+	setC(S_RA, 32 - (S_RB & 0x1f));
+}
+
+:srl S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1a & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA >> (S_RB & 0x1f);
+}
+
+:srl.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1a & S_CU=1 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA >> (S_RB & 0x1f);
+	checkNZ(S_RD);
+	setC(S_RA, (S_RB & 0x1f) - 1);
+}
+
+:sra S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1b & S_CU=0 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA s>> (S_RB & 0x1f);
+}
+
+:sra.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1b & S_CU=1 & S_RD & S_RA & S_RB
+{
+	S_RD = S_RA s>> (S_RB & 0x1f);
+	checkNZ(S_RD);
+	setC(S_RA, (S_RB & 0x1f) - 1);
+}
+
+:ror S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1c & S_CU=0 & S_RD & S_RA & S_RB
+{
+	local tmp = S_RB & 0x1f;
+	S_RD = (S_RA >> tmp) | (S_RA << (32 - tmp));
+}
+
+:ror.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1c & S_CU=1 & S_RD & S_RA & S_RB
+{
+	local tmp = S_RB & 0x1f;
+	S_RD = (S_RA >> tmp) | (S_RA << (32 - tmp));
+	N = S_RD s< 0;
+
+	if (tmp == 0) goto inst_next;
+	setC(S_RA, tmp - 1);
+}
+
+:rorc.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1d & S_CU=1 & S_RD & S_RA & S_RB unimpl
+
+:rol S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1e & S_CU=0 & S_RD & S_RA & S_RB
+{
+	local tmp = S_RB & 0x1f;
+	S_RD = (S_RA << tmp) | (S_RA >> (32 - tmp));
+}
+
+:rol.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1e & S_CU=1 & S_RD & S_RA & S_RB
+{
+	local tmp = S_RB & 0x1f;
+	S_RD = (S_RA << tmp) | (S_RA >> (32 - tmp));
+	N = S_RD s< 0;
+
+	if (tmp == 0) goto inst_next;
+	setC(S_RA, 32 - tmp);
+}
+
+:rolc.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1f & S_CU=1 & S_RD & S_RA & S_RB unimpl
+
+:mul S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x20 & S_RA & S_RB
+{
+	local tmp:8 = sext(S_RA) * sext(S_RB);
+	CEH = tmp[32,32];
+	CEL = tmp[0,32];
+}
+
+:mulu S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x21 & S_RA & S_RB
+{
+	local tmp:8 = zext(S_RA) * zext(S_RB);
+	CEH = tmp[32,32];
+	CEL = tmp[0,32];
+}
+
+:div S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x22 & S_RA & S_RB
+{
+	CEL = S_RA s/ S_RB;
+	CEH = S_RA s% S_RB;
+}
+
+:divu S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x23 & S_RA & S_RB
+{
+	CEL = S_RA / S_RB;
+	CEH = S_RA % S_RB;
+}
+
+:mfcel S_RD is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x24 & S_RB3=1 & S_RD
+{
+	S_RD = CEL;
+}
+
+:mfceh S_RD is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x24 & S_RB3=2 & S_RD
+{
+	S_RD = CEH;
+}
+
+:mfcehl S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x24 & S_RB3=3 & S_RA & S_RD
+{
+	S_RD = CEH;
+	S_RA = CEL;
+}
+
+:mtcel S_RD is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x25 & S_RB3=1 & S_RD
+{
+	CEL = S_RD;
+}
+
+:mtceh S_RD is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x25 & S_RB3=2 & S_RD
+{
+	CEH = S_RD;
+}
+
+:mtcehl S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x25 & S_RB3=3 & S_RA & S_RD
+{
+	CEH = S_RD;
+	CEL = S_RA;
+}
+
+:mfsr S_RD, S_RBSR is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x28 & S_SA5 < 3 & S_RD & S_RBSR
+{
+	S_RD = S_RBSR;
+}
+
+:mtsr S_RBSR, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x29 & S_SA5 < 3 & S_RBSR & S_RA
+{
+	S_RBSR = S_RA;
+}
+
+:t^CC32 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2a & CC32
+{
+	T = 0;
+	build CC32;
+	T = 1;
+}
+
+:mv^CC32 S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2b & S_RBC!=14 & S_RD & CC32 & S_RA
+{
+	build CC32;
+	S_RD = S_RA;
+}
+
+:extsb S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2c & I_CU=0 & S_RD & S_RA
+{
+	S_RD = sext(S_RA[0,8]);
+}
+
+:extsb.c S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2c & I_CU=1 & S_RD & S_RA
+{
+	S_RD = sext(S_RA[0,8]);
+	checkNZ(S_RD);  # Z is undefined
+}
+
+:extsh S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2d & I_CU=0 & S_RD & S_RA
+{
+	S_RD = sext(S_RA[0,16]);
+}
+
+:extsh.c S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2d & I_CU=1 & S_RD & S_RA
+{
+	S_RD = sext(S_RA[0,16]);
+	checkNZ(S_RD);  # Z is undefined
+}
+
+:extzb S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2e & I_CU=0 & S_RD & S_RA
+{
+	S_RD = zext(S_RA[0,8]);
+}
+
+:extzb.c S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2e & I_CU=1 & S_RD & S_RA
+{
+	S_RD = zext(S_RA[0,8]);
+	checkNZ(S_RD);  # Z is undefined
+}
+
+:extzh S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2f & I_CU=0 & S_RD & S_RA
+{
+	S_RD = zext(S_RA[0,16]);
+}
+
+:extzh.c S_RD, S_RA is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x2f & I_CU=1 & S_RD & S_RA
+{
+	S_RD = zext(S_RA[0,16]);
+	checkNZ(S_RD);  # Z is undefined
+}
+
+:lcb [S_RA]+ is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x30 & S_RD & S_RA unimpl
+
+:lcw S_RD, [S_RA]+ is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x31 & S_RD & S_RA & S_RB unimpl
+
+:lce S_RD, [S_RA]+ is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x33 & S_RD & S_RA & S_RB unimpl
+
+:scb S_RD, [S_RA]+ is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x34 & S_RD & S_RA & S_RB unimpl
+
+:scw S_RD, [S_RA]+ is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x35 & S_RD & S_RA & S_RB unimpl
+
+:sce [S_RA]+ is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x37 & S_RD & S_RA & S_RB unimpl
+
+:slli S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x38 & I_CU=0 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA << S_SA5;
+}
+
+:slli.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x38 & I_CU=1 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA << S_SA5;
+	checkNZ(S_RD);
+	setC(S_RA, 32 - S_SA5);
+}
+
+:srli S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3a & I_CU=0 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA >> S_SA5;
+}
+
+:srli.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3a & I_CU=1 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA >> S_SA5;
+	checkNZ(S_RD);
+	setC(S_RA, S_SA5 - 1);
+}
+
+:srai S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3b & I_CU=0 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA s>> S_SA5;
+}
+
+:srai.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3b & I_CU=1 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA s>> S_SA5;
+	checkNZ(S_RD);
+	setC(S_RA, S_SA5 - 1);
+}
+
+:rori S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3c & I_CU=0 & S_RD & S_RA & S_SA5
+{
+	S_RD = (S_RA >> S_SA5) | (S_RA << (32 - S_SA5));
+}
+
+:rori.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3c & S_SA50=0 & I_CU=1 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA;
+	Z = S_RD == 0;
+}
+
+:rori.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3c & S_SA50!=0 & I_CU=1 & S_RD & S_RA & S_SA5
+{
+	setC(S_RA, S_SA5 - 1);
+	S_RD = (S_RA >> S_SA5) | (S_RA << (32 - S_SA5));
+	Z = S_RD == 0;
+}
+
+:roric S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3d & I_CU=0 & S_RD & S_RA & S_SA5 unimpl
+
+:roric.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3d & I_CU=1 & S_RD & S_RA & S_SA5 unimpl
+
+:roli S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3e & I_CU=0 & S_RD & S_RA & S_SA5
+{
+	S_RD = (S_RA << S_SA5) | (S_RA >> (32 - S_SA5));
+}
+
+:roli.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3e & S_SA50=0 & I_CU=1 & S_RD & S_RA & S_SA5
+{
+	S_RD = S_RA;
+	Z = S_RD == 0;
+}
+
+:roli.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3e & S_SA50!=0 & I_CU=1 & S_RD & S_RA & S_SA5
+{
+	setC(S_RA, 32 - S_SA5);
+	S_RD = (S_RA << S_SA5) | (S_RA >> (32 - S_SA5));
+	Z = S_RD == 0;
+}
+
+:rolic S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3f & I_CU=0 & S_RD & S_RA & S_SA5 unimpl
+
+:rolic.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3f & I_CU=1 & S_RD & S_RA & S_SA5 unimpl
+
+#------------------------------------------------------------------------------
+
+:addi I_RD, SIMM16 is P32H=1 & P32L=1 & OP32=0x01 & I_FUNC3=0x00 & I_CU=0 & I_RD & SIMM16
+{
+	I_RD = I_RD + sext(SIMM16);
+}
+
+:addi.c I_RD, SIMM16 is P32H=1 & P32L=1 & OP32=0x01 & I_FUNC3=0x00 & I_CU=1 & I_RD & SIMM16
+{
+	local tmp:4 = sext(SIMM16);
+	checkAddCV(I_RD, tmp);
+	I_RD = I_RD + tmp;
+	checkNZ(I_RD);
+}
+
+:cmpi.c I_RD, SIMM16 is P32H=1 & P32L=1 & OP32=0x01 & I_FUNC3=0x02 & I_CU=1 & I_RD & SIMM16
+{
+	local tmp:4 = sext(SIMM16);
+	checkSubCV(I_RD, tmp);
+	checkNZ(I_RD - tmp);
+}
+
+:andi I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x01 & I_FUNC3=0x04 & I_CU=0 & I_RD & IMM16
+{
+	I_RD = I_RD & zext(IMM16);
+}
+
+:andi.c I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x01 & I_FUNC3=0x04 & I_CU=1 & I_RD & IMM16
+{
+	I_RD = I_RD & zext(IMM16);
+	checkNZ(I_RD);
+}
+
+:ori I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x01 & I_FUNC3=0x05 & I_CU=0 & I_RD & IMM16
+{
+	I_RD = I_RD | zext(IMM16);
+}
+
+:ori.c I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x01 & I_FUNC3=0x05 & I_CU=1 & I_RD & IMM16
+{
+	I_RD = I_RD | zext(IMM16);
+	checkNZ(I_RD);
+}
+
+:ldi I_RD, SIMM16 is P32H=1 & P32L=1 & OP32=0x01 & I_FUNC3=0x06 & I_RD & SIMM16
+{
+	I_RD = sext(SIMM16);
+}
+
+#------------------------------------------------------------------------------
+
+
+:j JDEST32 is P32H=1 & P32L=1 & BC_LK=0 & OP32=0x02 & JDEST32
+{
+	goto JDEST32;
+}
+
+:jl JDEST32 is P32H=1 & P32L=1 & BC_LK=1 & OP32=0x02 & JDEST32
+{
+	r3 = inst_next;
+	call JDEST32;
+}
+
+#------------------------------------------------------------------------------
+
+:lw RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=0 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	local addr = RIX_RA + RIX_IMM12;
+	RIX_RD = *[RAM]:4 addr;
+	RIX_RA = addr;
+}
+
+:lh RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=1 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	local addr = RIX_RA + RIX_IMM12;
+	RIX_RD = sext(*[RAM]:2 addr);
+	RIX_RA = addr;
+}
+
+:lhu RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=2 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	local addr = RIX_RA + RIX_IMM12;
+	RIX_RD = zext(*[RAM]:2 addr);
+	RIX_RA = addr;
+}
+
+:lb RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=3 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	local addr = RIX_RA + RIX_IMM12;
+	RIX_RD = sext(*[RAM]:1 addr);
+	RIX_RA = addr;
+}
+
+:sw RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=4 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	local addr = RIX_RA + RIX_IMM12;
+	*[RAM]:4 addr = RIX_RD;
+	RIX_RA = addr;
+}
+
+:sh RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=5 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	local addr = RIX_RA + RIX_IMM12;
+	*[RAM]:2 addr = RIX_RD[0,16];
+	RIX_RA = addr;
+}
+
+:lbu RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=6 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	local addr = RIX_RA + RIX_IMM12;
+	RIX_RD = zext(*[RAM]:1 addr);
+	RIX_RA = addr;
+}
+
+:sb RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=7 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	local addr = RIX_RA + RIX_IMM12;
+	*[RAM]:1 addr = RIX_RD[0,8];
+	RIX_RA = addr;
+}
+
+#------------------------------------------------------------------------------
+
+:b^CC32 BDEST32 is P32H=1 & P32L=1 & BC_LK=0 & OP32=0x04 & CC32 & BDEST32
+{
+	build CC32;
+	goto BDEST32;
+}
+
+:b^CC32"l" BDEST32 is P32H=1 & P32L=1 & BC_LK=1 & OP32=0x04 & CC32 & BDEST32
+{
+	build CC32;
+	r3 = inst_next;
+	call BDEST32;
+}
+
+#------------------------------------------------------------------------------
+
+:addis I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x05 & I_FUNC3=0x00 & I_CU=0 & I_RD & IMM16
+{
+	I_RD = I_RD + (zext(IMM16) << 16);
+}
+
+:addis.c I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x05 & I_FUNC3=0x00 & I_CU=1 & I_RD & IMM16
+{
+	local tmp:4 = zext(IMM16) << 16;
+	checkAddCV(I_RD, tmp);
+	I_RD = I_RD + tmp;
+	checkNZ(I_RD);
+}
+
+:cmpis.c I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x05 & I_FUNC3=0x02 & I_CU=1 & I_RD & IMM16
+{
+	local tmp:4 = zext(IMM16) << 16;
+	checkSubCV(I_RD, tmp);
+	checkNZ(I_RD - tmp);
+}
+
+:andis I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x05 & I_FUNC3=0x04 & I_CU=0 & I_RD & IMM16
+{
+	I_RD = I_RD & (zext(IMM16) << 16);
+}
+
+:andis.c I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x05 & I_FUNC3=0x04 & I_CU=1 & I_RD & IMM16
+{
+	I_RD = I_RD & (zext(IMM16) << 16);
+	checkNZ(I_RD);
+}
+
+:oris I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x05 & I_FUNC3=0x05 & I_CU=0 & I_RD & IMM16
+{
+	I_RD = I_RD | (zext(IMM16) << 16);
+}
+
+:oris.c I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x05 & I_FUNC3=0x05 & I_CU=1 & I_RD & IMM16
+{
+	I_RD = I_RD | (zext(IMM16) << 16);
+	checkNZ(I_RD);
+}
+
+:ldis I_RD, IMM16 is P32H=1 & P32L=1 & OP32=0x05 & I_FUNC3=0x06 & I_RD & IMM16
+{
+	I_RD = zext(IMM16) << 16;
+}
+
+#------------------------------------------------------------------------------
+#    Coprocessor Instructions
+#------------------------------------------------------------------------------
+
+:mtcr CR_RD, CR_CR is P32H=1 & P32L=1 & OP32=0x06 & CR_OP=0x00 & CR_CRI!=2 & CR_RD & CR_CR
+{
+	CR_CR = CR_RD;
+}
+
+:mfcr CR_RD, CR_CR is P32H=1 & P32L=1 & OP32=0x06 & CR_OP=0x01 & CR_CRI!=2 & CR_RD & CR_CR
+{
+	CR_RD = CR_CR;
+}
+
+# Lower 5 bits of cr2 are the flags
+:mtcr CR_RD, CR_CR is P32H=1 & P32L=1 & OP32=0x06 & CR_OP=0x00 & CR_CRI=2 & CR_RD & CR_CR
+{
+	CR_CR = CR_RD;
+	V = CR_RD[0,1];
+	C = CR_RD[1,1];
+	Z = CR_RD[2,1];
+	N = CR_RD[3,1];
+	T = CR_RD[4,1];
+}
+
+# Lower 5 bits of cr2 are the flags
+:mfcr CR_RD, CR_CR is P32H=1 & P32L=1 & OP32=0x06 & CR_OP=0x01 & CR_CRI=2 & CR_RD & CR_CR
+{
+	CR_RD = CR_CR & 0xffffffe0;
+	CR_RD[0,5] = (V << 0) | (C << 1) | (Z << 2) | (N << 3) | (T << 4);
+}
+
+:rte is P32H=1 & P32L=1 & OP32=0x06 & CR_OP=0x84
+{
+	cr0[0,2] = cr0[2,2];
+	cr1[0,5] = cr1[5,5];
+	return [cr5];
+}
+
+:drte is P32H=1 & P32L=1 & OP32=0x06 & CR_OP=0xa4
+{
+	return [cr30];
+}
+
+:sleep is P32H=1 & P32L=1 & OP32=0x06 & CR_OP=0xc4
+{
+	score7_sleep();
+}
+
+#------------------------------------------------------------------------------
+
+:lw RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=0 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	RIX_RD = *[RAM]:4 RIX_RA;
+	RIX_RA = RIX_RA + RIX_IMM12;
+}
+
+:lh RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=1 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	RIX_RD = sext(*[RAM]:2 RIX_RA);
+	RIX_RA = RIX_RA + RIX_IMM12;
+}
+
+:lhu RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=2 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	RIX_RD = zext(*[RAM]:2 RIX_RA);
+	RIX_RA = RIX_RA + RIX_IMM12;
+}
+
+:lb RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=3 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	RIX_RD = sext(*[RAM]:1 RIX_RA);
+	RIX_RA = RIX_RA + RIX_IMM12;
+}
+
+:sw RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=4 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	*[RAM]:4 RIX_RA = RIX_RD;
+	RIX_RA = RIX_RA + RIX_IMM12;
+}
+
+:sh RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=5 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	*[RAM]:2 RIX_RA = RIX_RD[0,16];
+	RIX_RA = RIX_RA + RIX_IMM12;
+}
+
+:lbu RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=6 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	RIX_RD = zext(*[RAM]:1 RIX_RA);
+	RIX_RA = RIX_RA + RIX_IMM12;
+}
+
+:sb RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=7 & RIX_RD & RIX_RA & RIX_IMM12
+{
+	*[RAM]:1 RIX_RA = RIX_RD[0,8];
+	RIX_RA = RIX_RA + RIX_IMM12;
+}
+
+#------------------------------------------------------------------------------
+
+:addri RI_RD, RI_RA, RI_SIMM14 is P32H=1 & P32L=1 & OP32=0x08 & RI_CU=0 & RI_RD & RI_RA & RI_SIMM14
+{
+	RI_RD = RI_RA + RI_SIMM14;
+}
+
+:addri.c RI_RD, RI_RA, RI_SIMM14 is P32H=1 & P32L=1 & OP32=0x08 & RI_CU=1 & RI_RD & RI_RA & RI_SIMM14
+{
+	checkAddCV(RI_RA, RI_SIMM14);
+	RI_RD = RI_RA + RI_SIMM14;
+	checkNZ(RI_RD);
+}
+
+#------------------------------------------------------------------------------
+
+:andri RI_RD, RI_RA, RI_IMM14 is P32H=1 & P32L=1 & OP32=0x0c & RI_CU=0 & RI_RD & RI_RA & RI_IMM14
+{
+	RI_RD = RI_RA & RI_IMM14;
+}
+
+:andri.c RI_RD, RI_RA, RI_IMM14 is P32H=1 & P32L=1 & OP32=0x0c & RI_CU=1 & RI_RD & RI_RA & RI_IMM14
+{
+	RI_RD = RI_RA & RI_IMM14;
+	checkNZ(RI_RD);
+}
+
+#------------------------------------------------------------------------------
+
+:orri RI_RD, RI_RA, RI_IMM14 is P32H=1 & P32L=1 & OP32=0x0d & RI_CU=0 & RI_RD & RI_RA & RI_IMM14
+{
+	RI_RD = RI_RA | RI_IMM14;
+}
+
+:orri.c RI_RD, RI_RA, RI_IMM14 is P32H=1 & P32L=1 & OP32=0x0d & RI_CU=1 & RI_RD & RI_RA & RI_IMM14
+{
+	RI_RD = RI_RA | RI_IMM14;
+	checkNZ(RI_RD);
+}
+
+#------------------------------------------------------------------------------
+
+:lw LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x10 & LS_RD & LS_RA & LS_IMM15
+{
+	local addr = LS_RA + LS_IMM15;
+	LS_RD = *[RAM]:4 addr;
+}
+
+:lh LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x11 & LS_RD & LS_RA & LS_IMM15
+{
+	local addr = LS_RA + LS_IMM15;
+	LS_RD = sext(*[RAM]:2 addr);
+}
+
+:lhu LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x12 & LS_RD & LS_RA & LS_IMM15
+{
+	local addr = LS_RA + LS_IMM15;
+	LS_RD = zext(*[RAM]:2 addr);
+}
+
+:lb LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x13 & LS_RD & LS_RA & LS_IMM15
+{
+	local addr = LS_RA + LS_IMM15;
+	LS_RD = sext(*[RAM]:1 addr);
+}
+
+:sw LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x14 & LS_RD & LS_RA & LS_IMM15
+{
+	local addr = LS_RA + LS_IMM15;
+	*[RAM]:4 addr = LS_RD;
+}
+
+:sh LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x15 & LS_RD & LS_RA & LS_IMM15
+{
+	local addr = LS_RA + LS_IMM15;
+	*[RAM]:2 addr = LS_RD[0,16];
+}
+
+:lbu LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x16 & LS_RD & LS_RA & LS_IMM15
+{
+	local addr = LS_RA + LS_IMM15;
+	LS_RD = zext(*[RAM]:1 addr);
+}
+
+:sb LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x17 & LS_RD & LS_RA & LS_IMM15
+{
+	local addr = LS_RA + LS_IMM15;
+	*[RAM]:1 addr = LS_RD[0,8];
+}
+
+#------------------------------------------------------------------------------
+
+:cache CACHE_OP, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x18 & CACHE_OP & LS_RA & LS_IMM15
+{
+	score7_cache(CACHE_OP:1, LS_RA, LS_IMM15:2);
+}
+
+#------------------------------------------------------------------------------
+
+:ceinst R_FUNC5, S_RA, S_RB, R_USD1, R_USD2 is P32H=1 & P32L=1 & OP32=0x1a & R_FUNC5 & S_RA & S_RB & R_USD1 & R_USD2
+{
+	score7_ceinst(R_FUNC5:1, S_RA, S_RB, R_USD1:1, R_USD2:1);
+}
+
+#------------------------------------------------------------------------------
+
+:cenewt R_FUNC5, S_RA, S_RB, R_USD1, R_USD2 is P32H=1 & P32L=1 & OP32=0x1c & R_FUNC5 & S_RA & S_RB & R_USD1 & R_USD2
+{
+	score7_ceinst(R_FUNC5:1, S_RA, S_RB, R_USD1:1, R_USD2:1);
+}

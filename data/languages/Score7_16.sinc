@@ -1,0 +1,383 @@
+# sleigh include file for S+core7 16-bit Opcodes
+
+#------------------------------------------------------------------------------
+# TOKENS
+#------------------------------------------------------------------------------
+
+define token op16(16)
+	P16       = (15,15)
+	OP16      = (12,14)
+	C16       = (8,11)
+
+	# RForm
+	R_RD      = (8,11)
+	R_RDC     = (8,11)
+	R_RA      = (4,7)
+	R_RAI     = (4,7)
+	R_RDH     = (8,11)
+	R_RAH     = (4,7)
+	R_FUNC4   = (0,3)
+
+	# BXForm
+	#BX_EC     = (8,11)
+	BX_DISP8  = (0,7) signed
+
+	# I2Form
+	I2_RD     = (8,11)
+	I2_IMM8   = (0,7)
+
+	# IForm
+	I16_RD    = (8,11)
+	I16_IMM5  = (3,7) dec
+	I16_EXTS  = (7,7)
+	I16_EXP4  = (3,6)
+	I16_EXP4D = (3,6) dec
+	I16_FUNC3 = (0,2)
+
+	# JForm
+	J_DISP11  = (1,11)
+	J_LK      = (0,0)
+
+	# PUSH/POP Form
+	P_RAG     = (4,6)
+	P_RDG     = (7,7)
+	P_RDGL    = (8,11)
+	P_RDGH    = (8,11)
+;
+
+
+attach variables [R_RD R_RA I2_RD I16_RD P_RDGL]                                     [ r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 ];
+attach variables [R_RDH R_RAH P_RDGH]                                                [ r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 ];
+attach variables [P_RAG]                                                             [ r0 r1 r2 r3 r4 r5 r6 r7 ];
+
+
+CC16: "cs"   is C16=0    { if (C == 0) goto inst_next; }
+CC16: "cc"   is C16=1    { if (C != 0) goto inst_next; }
+CC16: "gtu"  is C16=2    { if (C == 0 || Z != 0) goto inst_next; }
+CC16: "leu"  is C16=3    { if (C != 0 && Z == 0) goto inst_next; }
+CC16: "eq"   is C16=4    { if (Z == 0) goto inst_next; }
+CC16: "ne"   is C16=5    { if (Z != 0) goto inst_next; }
+CC16: "gt"   is C16=6    { if (Z != 0 || N != V) goto inst_next; }
+CC16: "le"   is C16=7    { if (Z == 0 && N == V) goto inst_next; }
+CC16: "ge"   is C16=8    { if (N != V) goto inst_next; }
+CC16: "lt"   is C16=9    { if (N == V) goto inst_next; }
+CC16: "mi"   is C16=10   { if (N == 0) goto inst_next; }
+CC16: "pl"   is C16=11   { if (N != 0) goto inst_next; }
+CC16: "vs"   is C16=12   { if (V == 0) goto inst_next; }
+CC16: "vc"   is C16=13   { if (V != 0) goto inst_next; }
+CC16: "cnz"  is C16=14   { if (sr0 == 0) goto inst_next; sr0 = sr0 - 1; }
+CC16: ""     is C16=15   {  }
+
+
+BDEST16: reloc is BX_DISP8 [ reloc = inst_start + BX_DISP8 * 2; ] { export *[RAM]:4 reloc; }
+JDEST16: reloc is J_DISP11 [ reloc = (inst_start & 0xfffff000) | (J_DISP11 << 1); ] { export *[RAM]:4 reloc; }
+
+
+#------------------------------------------------------------------------------
+# OPCODES
+#------------------------------------------------------------------------------
+
+:nop! is P16=0 & OP16=0 & R_FUNC4=0x00
+{
+}
+
+:mlfh! R_RD, R_RAH is P16=0 & OP16=0 & R_FUNC4=0x01 & R_RD & R_RAH
+{
+	R_RD = R_RAH;
+}
+
+:mhfl! R_RDH, R_RA is P16=0 & OP16=0 & R_FUNC4=0x02 & R_RDH & R_RA
+{
+	R_RDH = R_RA;
+}
+
+:mv! R_RD, R_RA is P16=0 & OP16=0 & R_FUNC4=0x03 & R_RD & R_RA
+{
+	R_RD = R_RA;
+}
+
+:br! R_RA is P16=0 & OP16=0 & R_FUNC4=0x04 & R_RAI=3 & R_RDC=15 & R_RA
+{
+	return [R_RA];
+}
+
+:br! R_RA is P16=0 & OP16=0 & R_FUNC4=0x04 & R_RAI!=3 & R_RDC=15 & R_RA
+{
+	goto [R_RA];
+}
+
+:br^CC16! R_RA is P16=0 & OP16=0 & R_FUNC4=0x04 & R_RDC!=15 & CC16 & R_RA
+{
+	build CC16;
+	goto [R_RA];
+}
+
+:t^CC16! is P16=0 & OP16=0 & R_FUNC4=0x05 & CC16
+{
+	T = 0;
+	build CC16;
+	T = 1;
+}
+
+:sll! R_RD, R_RA is P16=0 & OP16=0 & R_FUNC4=0x08 & R_RD & R_RA
+{
+	R_RD = R_RD << (R_RA & 0x1f);
+	checkNZ(R_RD);
+}
+
+:addc! R_RD, R_RA is P16=0 & OP16=0 & R_FUNC4=0x09 & R_RD & R_RA
+{
+	local tmp = R_RD;
+	R_RD = R_RD + R_RA + zext(C);
+	checkAddCarryCV(R_RA, tmp);
+	checkNZ(R_RD);
+}
+
+:srl! R_RD, R_RA is P16=0 & OP16=0 & R_FUNC4=0x0a & R_RD & R_RA
+{
+	R_RD = R_RD >> (R_RA & 0x1f);
+	checkNZ(R_RD);
+}
+
+:sra! R_RD, R_RA is P16=0 & OP16=0 & R_FUNC4=0x0b & R_RD & R_RA
+{
+	R_RD = R_RD s>> (R_RA & 0x1f);
+	checkNZ(R_RD);
+}
+
+
+:br^CC16"l"! R_RA is P16=0 & OP16=0 & R_FUNC4=0x0c & CC16 & R_RA
+{
+	build CC16;
+	r3 = inst_next;
+	call [R_RA];
+}
+
+#------------------------------------------------------------------------------
+
+:add! R_RD, R_RA is P16=0 & OP16=2 & R_FUNC4=0x00 & R_RD & R_RA
+{
+	checkAddCV(R_RA, R_RD);
+	R_RD = R_RD + R_RA;
+	checkNZ(R_RD);
+}
+
+:sub! R_RD, R_RA is P16=0 & OP16=2 & R_FUNC4=0x01 & R_RD & R_RA
+{
+	checkSubCV(R_RA, R_RD);
+	R_RD = R_RD - R_RA;
+	checkNZ(R_RD);
+}
+
+:neg! R_RD, R_RA is P16=0 & OP16=2 & R_FUNC4=0x02 & R_RD & R_RA
+{
+	C = 0 == R_RA;
+	V = sborrow(0, R_RA);
+	R_RD = 0 - R_RA;
+	checkNZ(R_RD);
+}
+
+:cmp! R_RD, R_RA is P16=0 & OP16=2 & R_FUNC4=0x03 & R_RD & R_RA
+{
+	checkSubCV(R_RD, R_RA);
+	checkNZ(R_RD - R_RA);
+}
+
+
+:and! R_RD, R_RA is P16=0 & OP16=2 & R_FUNC4=0x04 & R_RD & R_RA
+{
+	R_RD = R_RD & R_RA;
+	checkNZ(R_RD);
+}
+
+:or! R_RD, R_RA is P16=0 & OP16=2 & R_FUNC4=0x05 & R_RD & R_RA
+{
+	R_RD = R_RD | R_RA;
+	checkNZ(R_RD);
+}
+
+:not! R_RD, R_RA is P16=0 & OP16=2 & R_FUNC4=0x06 & R_RD & R_RA
+{
+	R_RD = ~R_RA;
+	checkNZ(R_RD);
+}
+
+:xor! R_RD, R_RA is P16=0 & OP16=2 & R_FUNC4=0x07 & R_RD & R_RA
+{
+	R_RD = R_RD ^ R_RA;
+	checkNZ(R_RD);
+}
+
+:lw! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x08 & R_RD & R_RA
+{
+	R_RD = *[RAM]:4 R_RA;
+}
+
+:lh! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x09 & R_RD & R_RA
+{
+	R_RD = sext(*[RAM]:2 R_RA);
+}
+
+:pop! P_RDGL, [P_RAG] is P16=0 & OP16=2 & R_FUNC4=0x0a & P_RDG=0 & P_RDGL & P_RAG
+{
+	P_RDGL = *[RAM]:4 P_RAG;
+	P_RAG = P_RAG + 4;
+}
+
+:pop! P_RDGH, [P_RAG] is P16=0 & OP16=2 & R_FUNC4=0x0a & P_RDG=1 & P_RDGH & P_RAG
+{
+	P_RDGH = *[RAM]:4 P_RAG;
+	P_RAG = P_RAG + 4;
+}
+
+:lbu! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x0b & R_RD & R_RA
+{
+	R_RD = zext(*[RAM]:1 R_RA);
+}
+
+:sw! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x0c & R_RD & R_RA
+{
+	*[RAM]:4 R_RA = R_RD;
+}
+
+:sh! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x0d & R_RD & R_RA
+{
+	*[RAM]:2 R_RA = R_RD[0,16];
+}
+
+:push! P_RDGL, [P_RAG] is P16=0 & OP16=2 & R_FUNC4=0x0e & P_RDG=0 & P_RDGL & P_RAG
+{
+	local addr = P_RAG - 4;
+	*[RAM]:4 addr = P_RDGL;
+	P_RAG = addr;
+}
+
+:push! P_RDGH, [P_RAG] is P16=0 & OP16=2 & R_FUNC4=0x0e & P_RDG=1 & P_RDGH & P_RAG
+{
+	local addr = P_RAG - 4;
+	*[RAM]:4 addr = P_RDGH;
+	P_RAG = addr;
+}
+
+:sb! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x0f & R_RD & R_RA
+{
+	*[RAM]:1 R_RA = R_RD[0,8];
+}
+
+
+#------------------------------------------------------------------------------
+
+:j! JDEST16 is P16=0 & OP16=3 & J_LK=0 & JDEST16
+{
+	goto JDEST16;
+}
+
+:jl! JDEST16 is P16=0 & OP16=3 & J_LK=1 & JDEST16
+{
+	r3 = inst_next;
+	call JDEST16;
+}
+
+#------------------------------------------------------------------------------
+
+:b^CC16! BDEST16 is P16=0 & OP16=4 & CC16 & BDEST16
+{
+	build CC16;
+	goto BDEST16;
+}
+
+#------------------------------------------------------------------------------
+
+:ldiu! I2_RD, I2_IMM8 is P16=0 & OP16=5 & I2_RD & I2_IMM8
+{
+	I2_RD = I2_IMM8;
+}
+
+#------------------------------------------------------------------------------
+
+:addei! I16_RD, I16_EXP4D is P16=0 & OP16=6 & I16_FUNC3=0 & I16_EXTS=0 & I16_EXP4!=0 & I16_RD & I16_EXP4D
+{
+	I16_RD = I16_RD + (1 << I16_EXP4D);
+}
+
+:subei! I16_RD, I16_EXP4D is P16=0 & OP16=6 & I16_FUNC3=0 & I16_EXTS=1 & I16_EXP4!=0 & I16_RD & I16_EXP4D
+{
+	I16_RD = I16_RD - (1 << I16_EXP4D);
+}
+
+:slli! I16_RD, I16_IMM5 is P16=0 & OP16=6 & I16_FUNC3=1 & I16_RD & I16_IMM5
+{
+	I16_RD = I16_RD << I16_IMM5;
+	checkNZ(I16_RD);
+}
+
+:sdbbp! I16_IMM5 is P16=0 & OP16=6 & I16_FUNC3=2 & I16_IMM5
+{
+	score7_sdbbp(I16_IMM5:1);
+}
+
+:srli! I16_RD, I16_IMM5 is P16=0 & OP16=6 & I16_FUNC3=3 & I16_RD & I16_IMM5
+{
+	I16_RD = I16_RD >> I16_IMM5;
+	checkNZ(I16_RD);
+}
+
+# Missing from docs
+:bitclr! I16_RD, I16_IMM5 is P16=0 & OP16=6 & I16_FUNC3=4 & I16_RD & I16_IMM5
+{
+	I16_RD = I16_RD & ~(1 << I16_IMM5);
+	checkNZ(I16_RD);
+}
+
+# Missing from docs
+:bitset! I16_RD, I16_IMM5 is P16=0 & OP16=6 & I16_FUNC3=5 & I16_RD & I16_IMM5
+{
+	I16_RD = I16_RD | (1 << I16_IMM5);
+	checkNZ(I16_RD);
+}
+
+# Docs says I16_FUNC3=7, but binutils use 6
+:bittst! I16_RD, I16_IMM5 is P16=0 & OP16=6 & (I16_FUNC3=6 | I16_FUNC3=7) & I16_RD & I16_IMM5
+{
+	Z = (I16_RD & (1 << I16_IMM5)) == 0;
+	N = I16_RD s< 0;
+}
+
+#------------------------------------------------------------------------------
+
+
+:lwp! I16_RD, I16_IMM is P16=0 & OP16=7 & I16_FUNC3=0 & I16_RD & I16_IMM5 [ I16_IMM = I16_IMM5 << 2; ]
+{
+	local addr = r2 + I16_IMM;
+	I16_RD = *[RAM]:4 addr;
+}
+
+:lhp! I16_RD, I16_IMM is P16=0 & OP16=7 & I16_FUNC3=1 & I16_RD & I16_IMM5 [ I16_IMM = I16_IMM5 << 1; ]
+{
+	local addr = r2 + I16_IMM;
+	I16_RD = sext(*[RAM]:2 addr);
+}
+
+:lbup! I16_RD, I16_IMM5 is P16=0 & OP16=7 & I16_FUNC3=3 & I16_RD & I16_IMM5
+{
+	local addr = r2 + I16_IMM5;
+	I16_RD = zext(*[RAM]:1 addr);
+}
+
+:swp! I16_RD, I16_IMM is P16=0 & OP16=7 & I16_FUNC3=4 & I16_RD & I16_IMM5 [ I16_IMM = I16_IMM5 << 2; ]
+{
+	local addr = r2 + I16_IMM;
+	*[RAM]:4 addr = I16_RD;
+}
+
+:shp! I16_RD, I16_IMM is P16=0 & OP16=7 & I16_FUNC3=5 & I16_RD & I16_IMM5 [ I16_IMM = I16_IMM5 << 1; ]
+{
+	local addr = r2 + I16_IMM;
+	*[RAM]:2 addr = I16_RD[0,16];
+}
+
+:sbp! I16_RD, I16_IMM5 is P16=0 & OP16=7 & I16_FUNC3=7 & I16_RD & I16_IMM5
+{
+	local addr = r2 + I16_IMM5;
+	*[RAM]:1 addr = I16_RD[0,8];
+}

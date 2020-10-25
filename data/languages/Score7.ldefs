@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<language_definitions>
+  <language processor="Score7"
+            endian="little"
+            size="32"
+            variant="default"
+            version="1.4"
+            slafile="Score7_le.sla"
+            processorspec="Score7.pspec"
+            manualindexfile="../manuals/Score7.idx"
+            id="Score7:LE:32:default">
+    <description>Sunplus S+core7 little endian</description>
+    <compiler name="default" spec="Score7.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="Score7.dwarf"/>
+  </language>
+
+  <language processor="Score7"
+            endian="big"
+            size="32"
+            variant="default"
+            version="1.4"
+            slafile="Score7_be.sla"
+            processorspec="Score7.pspec"
+            manualindexfile="../manuals/Score7.idx"
+            id="Score7:BE:32:default">
+    <description>Sunplus S+core7 big endian</description>
+    <compiler name="default" spec="Score7.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="Score7.dwarf"/>
+  </language>
+</language_definitions>

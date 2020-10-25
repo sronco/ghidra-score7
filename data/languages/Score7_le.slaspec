@@ -1,0 +1,6 @@
+
+define endian=little;
+
+@include "Score7.sinc"
+@include "Score7_16.sinc"
+@include "Score7_32.sinc"

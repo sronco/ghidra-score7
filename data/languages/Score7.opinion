@@ -1,0 +1,10 @@
+<opinions>
+    <constraint loader="Executable and Linking Format (ELF)" compilerSpecID="default">
+        <constraint primary="135"  processor="Score7"      endian="little" size="32" />
+    </constraint>
+
+    <!-- Old Sunplus S+core7 backend magic number. Written in the absence of an ABI. -->
+    <constraint loader="Executable and Linking Format (ELF)" compilerSpecID="default">
+        <constraint primary="95"   processor="Score7"      endian="little" size="32" />
+    </constraint>
+</opinions>

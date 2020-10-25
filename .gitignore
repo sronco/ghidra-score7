@@ -1,0 +1,11 @@
+*.pdf
+
+/*
+
+!/src/
+!/data/
+!/README.md
+!/Module.manifest
+!/extension.properties
+!/build.gradle
+!/.gitignore
