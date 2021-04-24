@@ -337,10 +337,17 @@ JDEST16: reloc is J_DISP11 [ reloc = (inst_start & 0xfffff000) | (J_DISP11 << 1)
 }
 
 # Docs says I16_FUNC3=7, but binutils use 6
-:bittst! I16_RD, I16_IMM5 is P16=0 & OP16=6 & (I16_FUNC3=6 | I16_FUNC3=7) & I16_RD & I16_IMM5
+:bittst! I16_RD, I16_IMM5 is P16=0 & OP16=6 & I16_FUNC3=6 & I16_RD & I16_IMM5
 {
 	Z = (I16_RD & (1 << I16_IMM5)) == 0;
 	N = I16_RD s< 0;
+}
+
+# used in the hyperscan 3D Demo
+:bittgl! I16_RD, I16_IMM5 is P16=0 & OP16=6 & I16_FUNC3=7 & I16_RD & I16_IMM5
+{
+	I16_RD = I16_RD ^ (1 << I16_IMM5);
+	checkNZ(I16_RD);
 }
 
 #------------------------------------------------------------------------------
