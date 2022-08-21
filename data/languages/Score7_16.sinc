@@ -30,8 +30,7 @@ define token op16(16)
 	I16_RD    = (8,11)
 	I16_IMM5  = (3,7) dec
 	I16_EXTS  = (7,7)
-	I16_EXP4  = (3,6)
-	I16_EXP4D = (3,6) dec
+	I16_EXP4  = (3,6) dec
 	I16_FUNC3 = (0,2)
 
 	# JForm
@@ -69,8 +68,8 @@ CC16: "cnz"  is C16=14   { if (sr0 == 0) goto inst_next; sr0 = sr0 - 1; }
 CC16: ""     is C16=15   {  }
 
 
-BDEST16: reloc is BX_DISP8 [ reloc = inst_start + BX_DISP8 * 2; ] { export *[RAM]:4 reloc; }
-JDEST16: reloc is J_DISP11 [ reloc = (inst_start & 0xfffff000) | (J_DISP11 << 1); ] { export *[RAM]:4 reloc; }
+BDEST16: reloc is BX_DISP8 [ reloc = inst_start + BX_DISP8 * 2; ] { export *[ram]:4 reloc; }
+JDEST16: reloc is J_DISP11 [ reloc = (inst_start & 0xfffff000) | (J_DISP11 << 1); ] { export *[ram]:4 reloc; }
 
 
 #------------------------------------------------------------------------------
@@ -210,58 +209,58 @@ JDEST16: reloc is J_DISP11 [ reloc = (inst_start & 0xfffff000) | (J_DISP11 << 1)
 
 :lw! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x08 & R_RD & R_RA
 {
-	R_RD = *[RAM]:4 R_RA;
+	R_RD = *[ram]:4 R_RA;
 }
 
 :lh! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x09 & R_RD & R_RA
 {
-	R_RD = sext(*[RAM]:2 R_RA);
+	R_RD = sext(*[ram]:2 R_RA);
 }
 
 :pop! P_RDGL, [P_RAG] is P16=0 & OP16=2 & R_FUNC4=0x0a & P_RDG=0 & P_RDGL & P_RAG
 {
-	P_RDGL = *[RAM]:4 P_RAG;
+	P_RDGL = *[ram]:4 P_RAG;
 	P_RAG = P_RAG + 4;
 }
 
 :pop! P_RDGH, [P_RAG] is P16=0 & OP16=2 & R_FUNC4=0x0a & P_RDG=1 & P_RDGH & P_RAG
 {
-	P_RDGH = *[RAM]:4 P_RAG;
+	P_RDGH = *[ram]:4 P_RAG;
 	P_RAG = P_RAG + 4;
 }
 
 :lbu! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x0b & R_RD & R_RA
 {
-	R_RD = zext(*[RAM]:1 R_RA);
+	R_RD = zext(*[ram]:1 R_RA);
 }
 
 :sw! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x0c & R_RD & R_RA
 {
-	*[RAM]:4 R_RA = R_RD;
+	*[ram]:4 R_RA = R_RD;
 }
 
 :sh! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x0d & R_RD & R_RA
 {
-	*[RAM]:2 R_RA = R_RD[0,16];
+	*[ram]:2 R_RA = R_RD[0,16];
 }
 
 :push! P_RDGL, [P_RAG] is P16=0 & OP16=2 & R_FUNC4=0x0e & P_RDG=0 & P_RDGL & P_RAG
 {
 	local addr = P_RAG - 4;
-	*[RAM]:4 addr = P_RDGL;
+	*[ram]:4 addr = P_RDGL;
 	P_RAG = addr;
 }
 
 :push! P_RDGH, [P_RAG] is P16=0 & OP16=2 & R_FUNC4=0x0e & P_RDG=1 & P_RDGH & P_RAG
 {
 	local addr = P_RAG - 4;
-	*[RAM]:4 addr = P_RDGH;
+	*[ram]:4 addr = P_RDGH;
 	P_RAG = addr;
 }
 
 :sb! R_RD, [R_RA] is P16=0 & OP16=2 & R_FUNC4=0x0f & R_RD & R_RA
 {
-	*[RAM]:1 R_RA = R_RD[0,8];
+	*[ram]:1 R_RA = R_RD[0,8];
 }
 
 
@@ -295,14 +294,16 @@ JDEST16: reloc is J_DISP11 [ reloc = (inst_start & 0xfffff000) | (J_DISP11 << 1)
 
 #------------------------------------------------------------------------------
 
-:addei! I16_RD, I16_EXP4D is P16=0 & OP16=6 & I16_FUNC3=0 & I16_EXTS=0 & I16_EXP4!=0 & I16_RD & I16_EXP4D
+:addei! I16_RD, I16_EXP4 is P16=0 & OP16=6 & I16_FUNC3=0 & I16_EXTS=0 & I16_RD & I16_EXP4
 {
-	I16_RD = I16_RD + (1 << I16_EXP4D);
+	I16_RD = I16_RD + (1 << I16_EXP4);
+	checkNZ(I16_RD);
 }
 
-:subei! I16_RD, I16_EXP4D is P16=0 & OP16=6 & I16_FUNC3=0 & I16_EXTS=1 & I16_EXP4!=0 & I16_RD & I16_EXP4D
+:subei! I16_RD, I16_EXP4 is P16=0 & OP16=6 & I16_FUNC3=0 & I16_EXTS=1 & I16_RD & I16_EXP4
 {
-	I16_RD = I16_RD - (1 << I16_EXP4D);
+	I16_RD = I16_RD - (1 << I16_EXP4);
+	checkNZ(I16_RD);
 }
 
 :slli! I16_RD, I16_IMM5 is P16=0 & OP16=6 & I16_FUNC3=1 & I16_RD & I16_IMM5
@@ -356,35 +357,35 @@ JDEST16: reloc is J_DISP11 [ reloc = (inst_start & 0xfffff000) | (J_DISP11 << 1)
 :lwp! I16_RD, I16_IMM is P16=0 & OP16=7 & I16_FUNC3=0 & I16_RD & I16_IMM5 [ I16_IMM = I16_IMM5 << 2; ]
 {
 	local addr = r2 + I16_IMM;
-	I16_RD = *[RAM]:4 addr;
+	I16_RD = *[ram]:4 addr;
 }
 
 :lhp! I16_RD, I16_IMM is P16=0 & OP16=7 & I16_FUNC3=1 & I16_RD & I16_IMM5 [ I16_IMM = I16_IMM5 << 1; ]
 {
 	local addr = r2 + I16_IMM;
-	I16_RD = sext(*[RAM]:2 addr);
+	I16_RD = sext(*[ram]:2 addr);
 }
 
 :lbup! I16_RD, I16_IMM5 is P16=0 & OP16=7 & I16_FUNC3=3 & I16_RD & I16_IMM5
 {
 	local addr = r2 + I16_IMM5;
-	I16_RD = zext(*[RAM]:1 addr);
+	I16_RD = zext(*[ram]:1 addr);
 }
 
 :swp! I16_RD, I16_IMM is P16=0 & OP16=7 & I16_FUNC3=4 & I16_RD & I16_IMM5 [ I16_IMM = I16_IMM5 << 2; ]
 {
 	local addr = r2 + I16_IMM;
-	*[RAM]:4 addr = I16_RD;
+	*[ram]:4 addr = I16_RD;
 }
 
 :shp! I16_RD, I16_IMM is P16=0 & OP16=7 & I16_FUNC3=5 & I16_RD & I16_IMM5 [ I16_IMM = I16_IMM5 << 1; ]
 {
 	local addr = r2 + I16_IMM;
-	*[RAM]:2 addr = I16_RD[0,16];
+	*[ram]:2 addr = I16_RD[0,16];
 }
 
 :sbp! I16_RD, I16_IMM5 is P16=0 & OP16=7 & I16_FUNC3=7 & I16_RD & I16_IMM5
 {
 	local addr = r2 + I16_IMM5;
-	*[RAM]:1 addr = I16_RD[0,8];
+	*[ram]:1 addr = I16_RD[0,8];
 }

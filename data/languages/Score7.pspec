@@ -4,6 +4,6 @@
   <programcounter register="PC"/>
 
   <default_symbols>
-    <symbol name="reset" address="RAM:9f000000" entry="true" type="code_ptr"/>
+    <symbol name="reset" address="ram:9f000000" entry="true" type="code_ptr"/>
   </default_symbols>
 </processor_spec>

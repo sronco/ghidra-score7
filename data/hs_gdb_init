@@ -1,0 +1,11 @@
+# mame -debug -debugger gdbstub hyprscan
+# gdb-multiarch -x hs_gdb_init
+
+define info proc mappings
+echo 0x9f000000 0xa0000000 0x1000000 0x0 M0\n
+echo 0xa0000000 0xa1000000 0x1000000 0x0 M1
+end
+
+set architecture score7
+set endian little
+target remote :23946

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<language_translation>
+    <from_language version="1">Score7:LE:32:default</from_language>
+    <to_language version="2">Score7:LE:32:default</to_language>
+    <map_space from="RAM" to="ram" />
+</language_translation>

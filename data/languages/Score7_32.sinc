@@ -99,9 +99,9 @@ CC32: "vc"   is C32=13   { if (V != 0) goto inst_next; }
 CC32: "cnz"  is C32=14   { if (sr0 == 0) goto inst_next; sr0 = sr0 - 1; }
 CC32: ""     is C32=15   {  }
 
-BDEST32: reloc is BC_DISP19S=0 & BC_DISP19L & BC_DISP19H [ reloc = inst_start + (((BC_DISP19H << 9) | BC_DISP19L) << 1); ] { export *[RAM]:4 reloc; }
-BDEST32: reloc is BC_DISP19S=1 & BC_DISP19L & BC_DISP19H [ reloc = inst_start - (((((BC_DISP19H << 9) | BC_DISP19L) ^ 0x3ffff) + 1) * 2); ] { export *[RAM]:4 reloc; }
-JDEST32: reloc is J_DISP24L & J_DISP24H [ reloc = (inst_start & 0xfc000000) | (((J_DISP24H << 14) | J_DISP24L) << 1); ] { export *[RAM]:4 reloc; }
+BDEST32: reloc is BC_DISP19S=0 & BC_DISP19L & BC_DISP19H [ reloc = inst_start + (((BC_DISP19H << 9) | BC_DISP19L) << 1); ] { export *[ram]:4 reloc; }
+BDEST32: reloc is BC_DISP19S=1 & BC_DISP19L & BC_DISP19H [ reloc = inst_start - (((((BC_DISP19H << 9) | BC_DISP19L) ^ 0x3ffff) + 1) * 2); ] { export *[ram]:4 reloc; }
+JDEST32: reloc is J_DISP24L & J_DISP24H [ reloc = (inst_start & 0xfc000000) | (((J_DISP24H << 14) | J_DISP24L) << 1); ] { export *[ram]:4 reloc; }
 
 IMM16  : imm16 is I_IMM16L & I_IMM16H [ imm16 = (I_IMM16H << 14) | I_IMM16L; ] { tmp:2 = imm16; export tmp; }
 SIMM16 : simm16 is I_IMM16H<2  & I_IMM16L & I_IMM16H [ simm16 = (I_IMM16H << 14) | I_IMM16L; ] { tmp:2 = simm16; export tmp; }
@@ -363,9 +363,9 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 
 :sll.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x18 & S_CU=1 & S_RD & S_RA & S_RB
 {
+	setC(S_RA, 32 - (S_RB & 0x1f));
 	S_RD = S_RA << (S_RB & 0x1f);
 	checkNZ(S_RD);
-	setC(S_RA, 32 - (S_RB & 0x1f));
 }
 
 :srl S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1a & S_CU=0 & S_RD & S_RA & S_RB
@@ -375,9 +375,9 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 
 :srl.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1a & S_CU=1 & S_RD & S_RA & S_RB
 {
+	setC(S_RA, (S_RB & 0x1f) - 1);
 	S_RD = S_RA >> (S_RB & 0x1f);
 	checkNZ(S_RD);
-	setC(S_RA, (S_RB & 0x1f) - 1);
 }
 
 :sra S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1b & S_CU=0 & S_RD & S_RA & S_RB
@@ -387,9 +387,9 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 
 :sra.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1b & S_CU=1 & S_RD & S_RA & S_RB
 {
+	setC(S_RA, (S_RB & 0x1f) - 1);
 	S_RD = S_RA s>> (S_RB & 0x1f);
 	checkNZ(S_RD);
-	setC(S_RA, (S_RB & 0x1f) - 1);
 }
 
 :ror S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1c & S_CU=0 & S_RD & S_RA & S_RB
@@ -401,11 +401,12 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 :ror.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1c & S_CU=1 & S_RD & S_RA & S_RB
 {
 	local tmp = S_RB & 0x1f;
+	local tmp_ra = S_RA;
 	S_RD = (S_RA >> tmp) | (S_RA << (32 - tmp));
 	N = S_RD s< 0;
 
 	if (tmp == 0) goto inst_next;
-	setC(S_RA, tmp - 1);
+	setC(tmp_ra, tmp - 1);
 }
 
 :rorc.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1d & S_CU=1 & S_RD & S_RA & S_RB unimpl
@@ -419,11 +420,12 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 :rol.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1e & S_CU=1 & S_RD & S_RA & S_RB
 {
 	local tmp = S_RB & 0x1f;
+	local tmp_ra = S_RA;
 	S_RD = (S_RA << tmp) | (S_RA >> (32 - tmp));
 	N = S_RD s< 0;
 
 	if (tmp == 0) goto inst_next;
-	setC(S_RA, 32 - tmp);
+	setC(tmp_ra, 32 - tmp);
 }
 
 :rolc.c S_RD, S_RA, S_RB is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x1f & S_CU=1 & S_RD & S_RA & S_RB unimpl
@@ -572,9 +574,9 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 
 :slli.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x38 & I_CU=1 & S_RD & S_RA & S_SA5
 {
+	setC(S_RA, 32 - S_SA5);
 	S_RD = S_RA << S_SA5;
 	checkNZ(S_RD);
-	setC(S_RA, 32 - S_SA5);
 }
 
 :srli S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3a & I_CU=0 & S_RD & S_RA & S_SA5
@@ -584,9 +586,9 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 
 :srli.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3a & I_CU=1 & S_RD & S_RA & S_SA5
 {
+	setC(S_RA, S_SA5 - 1);
 	S_RD = S_RA >> S_SA5;
 	checkNZ(S_RD);
-	setC(S_RA, S_SA5 - 1);
 }
 
 :srai S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3b & I_CU=0 & S_RD & S_RA & S_SA5
@@ -596,9 +598,9 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 
 :srai.c S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3b & I_CU=1 & S_RD & S_RA & S_SA5
 {
+	setC(S_RA, S_SA5 - 1);
 	S_RD = S_RA s>> S_SA5;
 	checkNZ(S_RD);
-	setC(S_RA, S_SA5 - 1);
 }
 
 :rori S_RD, S_RA, S_SA5 is P32H=1 & P32L=1 & OP32=0x00 & S_FUNC6=0x3c & I_CU=0 & S_RD & S_RA & S_SA5
@@ -713,56 +715,56 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 :lw RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=0 & RIX_RD & RIX_RA & RIX_IMM12
 {
 	local addr = RIX_RA + RIX_IMM12;
-	RIX_RD = *[RAM]:4 addr;
+	RIX_RD = *[ram]:4 addr;
 	RIX_RA = addr;
 }
 
 :lh RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=1 & RIX_RD & RIX_RA & RIX_IMM12
 {
 	local addr = RIX_RA + RIX_IMM12;
-	RIX_RD = sext(*[RAM]:2 addr);
+	RIX_RD = sext(*[ram]:2 addr);
 	RIX_RA = addr;
 }
 
 :lhu RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=2 & RIX_RD & RIX_RA & RIX_IMM12
 {
 	local addr = RIX_RA + RIX_IMM12;
-	RIX_RD = zext(*[RAM]:2 addr);
+	RIX_RD = zext(*[ram]:2 addr);
 	RIX_RA = addr;
 }
 
 :lb RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=3 & RIX_RD & RIX_RA & RIX_IMM12
 {
 	local addr = RIX_RA + RIX_IMM12;
-	RIX_RD = sext(*[RAM]:1 addr);
+	RIX_RD = sext(*[ram]:1 addr);
 	RIX_RA = addr;
 }
 
 :sw RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=4 & RIX_RD & RIX_RA & RIX_IMM12
 {
 	local addr = RIX_RA + RIX_IMM12;
-	*[RAM]:4 addr = RIX_RD;
+	*[ram]:4 addr = RIX_RD;
 	RIX_RA = addr;
 }
 
 :sh RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=5 & RIX_RD & RIX_RA & RIX_IMM12
 {
 	local addr = RIX_RA + RIX_IMM12;
-	*[RAM]:2 addr = RIX_RD[0,16];
+	*[ram]:2 addr = RIX_RD[0,16];
 	RIX_RA = addr;
 }
 
 :lbu RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=6 & RIX_RD & RIX_RA & RIX_IMM12
 {
 	local addr = RIX_RA + RIX_IMM12;
-	RIX_RD = zext(*[RAM]:1 addr);
+	RIX_RD = zext(*[ram]:1 addr);
 	RIX_RA = addr;
 }
 
 :sb RIX_RD, [RIX_RA, RIX_IMM12]+ is P32H=1 & P32L=1 & OP32=0x03 & RIX_FUNC3=7 & RIX_RD & RIX_RA & RIX_IMM12
 {
 	local addr = RIX_RA + RIX_IMM12;
-	*[RAM]:1 addr = RIX_RD[0,8];
+	*[ram]:1 addr = RIX_RD[0,8];
 	RIX_RA = addr;
 }
 
@@ -883,49 +885,49 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 
 :lw RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=0 & RIX_RD & RIX_RA & RIX_IMM12
 {
-	RIX_RD = *[RAM]:4 RIX_RA;
+	RIX_RD = *[ram]:4 RIX_RA;
 	RIX_RA = RIX_RA + RIX_IMM12;
 }
 
 :lh RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=1 & RIX_RD & RIX_RA & RIX_IMM12
 {
-	RIX_RD = sext(*[RAM]:2 RIX_RA);
+	RIX_RD = sext(*[ram]:2 RIX_RA);
 	RIX_RA = RIX_RA + RIX_IMM12;
 }
 
 :lhu RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=2 & RIX_RD & RIX_RA & RIX_IMM12
 {
-	RIX_RD = zext(*[RAM]:2 RIX_RA);
+	RIX_RD = zext(*[ram]:2 RIX_RA);
 	RIX_RA = RIX_RA + RIX_IMM12;
 }
 
 :lb RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=3 & RIX_RD & RIX_RA & RIX_IMM12
 {
-	RIX_RD = sext(*[RAM]:1 RIX_RA);
+	RIX_RD = sext(*[ram]:1 RIX_RA);
 	RIX_RA = RIX_RA + RIX_IMM12;
 }
 
 :sw RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=4 & RIX_RD & RIX_RA & RIX_IMM12
 {
-	*[RAM]:4 RIX_RA = RIX_RD;
+	*[ram]:4 RIX_RA = RIX_RD;
 	RIX_RA = RIX_RA + RIX_IMM12;
 }
 
 :sh RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=5 & RIX_RD & RIX_RA & RIX_IMM12
 {
-	*[RAM]:2 RIX_RA = RIX_RD[0,16];
+	*[ram]:2 RIX_RA = RIX_RD[0,16];
 	RIX_RA = RIX_RA + RIX_IMM12;
 }
 
 :lbu RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=6 & RIX_RD & RIX_RA & RIX_IMM12
 {
-	RIX_RD = zext(*[RAM]:1 RIX_RA);
+	RIX_RD = zext(*[ram]:1 RIX_RA);
 	RIX_RA = RIX_RA + RIX_IMM12;
 }
 
 :sb RIX_RD, [RIX_RA]+, RIX_IMM12 is P32H=1 & P32L=1 & OP32=0x07 & RIX_FUNC3=7 & RIX_RD & RIX_RA & RIX_IMM12
 {
-	*[RAM]:1 RIX_RA = RIX_RD[0,8];
+	*[ram]:1 RIX_RA = RIX_RD[0,8];
 	RIX_RA = RIX_RA + RIX_IMM12;
 }
 
@@ -974,49 +976,49 @@ SIMM16 : simm16 is I_IMM16H>=2 & I_IMM16L & I_IMM16H [ simm16 = 0 - ((((I_IMM16H
 :lw LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x10 & LS_RD & LS_RA & LS_IMM15
 {
 	local addr = LS_RA + LS_IMM15;
-	LS_RD = *[RAM]:4 addr;
+	LS_RD = *[ram]:4 addr;
 }
 
 :lh LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x11 & LS_RD & LS_RA & LS_IMM15
 {
 	local addr = LS_RA + LS_IMM15;
-	LS_RD = sext(*[RAM]:2 addr);
+	LS_RD = sext(*[ram]:2 addr);
 }
 
 :lhu LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x12 & LS_RD & LS_RA & LS_IMM15
 {
 	local addr = LS_RA + LS_IMM15;
-	LS_RD = zext(*[RAM]:2 addr);
+	LS_RD = zext(*[ram]:2 addr);
 }
 
 :lb LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x13 & LS_RD & LS_RA & LS_IMM15
 {
 	local addr = LS_RA + LS_IMM15;
-	LS_RD = sext(*[RAM]:1 addr);
+	LS_RD = sext(*[ram]:1 addr);
 }
 
 :sw LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x14 & LS_RD & LS_RA & LS_IMM15
 {
 	local addr = LS_RA + LS_IMM15;
-	*[RAM]:4 addr = LS_RD;
+	*[ram]:4 addr = LS_RD;
 }
 
 :sh LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x15 & LS_RD & LS_RA & LS_IMM15
 {
 	local addr = LS_RA + LS_IMM15;
-	*[RAM]:2 addr = LS_RD[0,16];
+	*[ram]:2 addr = LS_RD[0,16];
 }
 
 :lbu LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x16 & LS_RD & LS_RA & LS_IMM15
 {
 	local addr = LS_RA + LS_IMM15;
-	LS_RD = zext(*[RAM]:1 addr);
+	LS_RD = zext(*[ram]:1 addr);
 }
 
 :sb LS_RD, [LS_RA, LS_IMM15] is P32H=1 & P32L=1 & OP32=0x17 & LS_RD & LS_RA & LS_IMM15
 {
 	local addr = LS_RA + LS_IMM15;
-	*[RAM]:1 addr = LS_RD[0,8];
+	*[ram]:1 addr = LS_RD[0,8];
 }
 
 #------------------------------------------------------------------------------

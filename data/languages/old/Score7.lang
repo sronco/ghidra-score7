@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<language version="1" endian="little">
+    <description>
+        <id>Score7:LE:32:default</id>
+        <processor>Score7</processor>
+        <variant>default</variant>
+        <size>32</size>
+    </description>
+    <compiler name="default" id="default" />
+    <spaces>
+        <space name="RAM" type="ram" size="4" default="yes" />
+        <space name="register" type="register" size="4" />
+    </spaces>
+    <registers>
+        <register name="r0" offset="0x0" bitsize="32" />
+        <register name="r1" offset="0x4" bitsize="32" />
+        <register name="r2" offset="0x8" bitsize="32" />
+        <register name="r3" offset="0xc" bitsize="32" />
+        <register name="r4" offset="0x10" bitsize="32" />
+        <register name="r5" offset="0x14" bitsize="32" />
+        <register name="r6" offset="0x18" bitsize="32" />
+        <register name="r7" offset="0x1c" bitsize="32" />
+        <register name="r8" offset="0x20" bitsize="32" />
+        <register name="r9" offset="0x24" bitsize="32" />
+        <register name="r10" offset="0x28" bitsize="32" />
+        <register name="r11" offset="0x2c" bitsize="32" />
+        <register name="r12" offset="0x30" bitsize="32" />
+        <register name="r13" offset="0x34" bitsize="32" />
+        <register name="r14" offset="0x38" bitsize="32" />
+        <register name="r15" offset="0x3c" bitsize="32" />
+        <register name="r16" offset="0x40" bitsize="32" />
+        <register name="r17" offset="0x44" bitsize="32" />
+        <register name="r18" offset="0x48" bitsize="32" />
+        <register name="r19" offset="0x4c" bitsize="32" />
+        <register name="r20" offset="0x50" bitsize="32" />
+        <register name="r21" offset="0x54" bitsize="32" />
+        <register name="r22" offset="0x58" bitsize="32" />
+        <register name="r23" offset="0x5c" bitsize="32" />
+        <register name="r24" offset="0x60" bitsize="32" />
+        <register name="r25" offset="0x64" bitsize="32" />
+        <register name="r26" offset="0x68" bitsize="32" />
+        <register name="r27" offset="0x6c" bitsize="32" />
+        <register name="r28" offset="0x70" bitsize="32" />
+        <register name="r29" offset="0x74" bitsize="32" />
+        <register name="r30" offset="0x78" bitsize="32" />
+        <register name="r31" offset="0x7c" bitsize="32" />
+        <register name="cr0" offset="0x80" bitsize="32" />
+        <register name="cr1" offset="0x84" bitsize="32" />
+        <register name="cr2" offset="0x88" bitsize="32" />
+        <register name="cr3" offset="0x8c" bitsize="32" />
+        <register name="cr4" offset="0x90" bitsize="32" />
+        <register name="cr5" offset="0x94" bitsize="32" />
+        <register name="cr6" offset="0x98" bitsize="32" />
+        <register name="cr7" offset="0x9c" bitsize="32" />
+        <register name="cr8" offset="0xa0" bitsize="32" />
+        <register name="cr9" offset="0xa4" bitsize="32" />
+        <register name="cr10" offset="0xa8" bitsize="32" />
+        <register name="cr11" offset="0xac" bitsize="32" />
+        <register name="cr12" offset="0xb0" bitsize="32" />
+        <register name="cr13" offset="0xb4" bitsize="32" />
+        <register name="cr14" offset="0xb8" bitsize="32" />
+        <register name="cr15" offset="0xbc" bitsize="32" />
+        <register name="cr16" offset="0xc0" bitsize="32" />
+        <register name="cr17" offset="0xc4" bitsize="32" />
+        <register name="cr18" offset="0xc8" bitsize="32" />
+        <register name="cr19" offset="0xcc" bitsize="32" />
+        <register name="cr20" offset="0xd0" bitsize="32" />
+        <register name="cr21" offset="0xd4" bitsize="32" />
+        <register name="cr22" offset="0xd8" bitsize="32" />
+        <register name="cr23" offset="0xdc" bitsize="32" />
+        <register name="cr24" offset="0xe0" bitsize="32" />
+        <register name="cr25" offset="0xe4" bitsize="32" />
+        <register name="cr26" offset="0xe8" bitsize="32" />
+        <register name="cr27" offset="0xec" bitsize="32" />
+        <register name="cr28" offset="0xf0" bitsize="32" />
+        <register name="cr29" offset="0xf4" bitsize="32" />
+        <register name="cr30" offset="0xf8" bitsize="32" />
+        <register name="cr31" offset="0xfc" bitsize="32" />
+        <register name="PC" offset="0x100" bitsize="32" />
+        <register name="sr0" offset="0x104" bitsize="32" />
+        <register name="sr1" offset="0x108" bitsize="32" />
+        <register name="sr2" offset="0x10c" bitsize="32" />
+        <register name="CEL" offset="0x110" bitsize="32" />
+        <register name="CEH" offset="0x114" bitsize="32" />
+        <register name="V" offset="0x180" bitsize="8" />
+        <register name="C" offset="0x181" bitsize="8" />
+        <register name="Z" offset="0x182" bitsize="8" />
+        <register name="N" offset="0x183" bitsize="8" />
+        <register name="T" offset="0x184" bitsize="8" />
+    </registers>
+</language>
